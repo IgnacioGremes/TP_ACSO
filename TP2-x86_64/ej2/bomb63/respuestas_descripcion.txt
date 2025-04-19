@@ -1,0 +1,36 @@
+phase_1:
+    Al ver que hace call a una funcion <strings_not_equal>, y que solo dos intstrucciones despues hace el 'jne', supuse que el inputpara desarmar la phase_1
+    tendria que el input tendria que ser un string, luego vi un 'lea' en el registro rsi justo antes del 'call' por lo tanto supuse que ese seria el string
+    que se compararia en el <strings_not_equal>, ya que el regsitro rsi es uno de los utilizados para inputs. Entonces busque lo que se guardaba en rsi.
+
+phase_2:
+    tenes los 'call   4011c0 <_init+0x1c0>' que reciven rdi, el input que ponemos nosotros y luego de ejecutar esta funcion se guarda el output en rbx, r12 y 
+    se comprueba que no sea NULL, con el 'test rax rax' y el 'je'. Lo que el call 4011c0 hace es eliminar la primer palabras o secuencias de numeros segun si 
+    estan separados por un espacio. Por lo tanto en rbp se guarda el input original, en rbx el string con una palabra menos y en r12 el string cos 2 palabras 
+    menos, y los 'test' comprueban que que lo guardado en los registros no sea NULL por lo tanto el input debe de ser minimo de 3 palabras. Luego <__strtol>
+    solo convierte de string a long y guarda sus outputs en ebp, ebx y eax. Depues tenemos el 'xor' y 'sar'. en ebp tenemos guardado el numero corresponiente
+    a la primera parlabra, en ebx el correpondiente a la segunda y en eax la terecera. Entonces si consideramos el 'xor','sar','cmp' y 'jne' deducimos que
+    'ebp xor ebx >> 1 == eax'. Luego se llama a <misterio> que lo que hace es ver si su input es negativo o positivo, y explota si es positivo, como el input
+    que se le pasa a <misterio> es 'r12', significa que la tercera palabra tiene que ser negativa. Y con esto se decifra la phase_2, se utlizaron numeros en 
+    vez de palabras para facilitar las operaciones binarias.   
+
+phase_3:
+    Primero con el <__isoc99_sscanf> y el 'cmp' que le sigue deducimos que el input tiene que ser de 2 palabras. Luego el <readlines> lee el archivo palabras.txt
+    y lo guarda en r12. Luego se hace 'call' de <cuenta>, que lo que hace es hacer una busqueda binaria en palabras.txt de la primera palabra ingresada en el
+    input,  y cuenta la cantidad de iteraciones que le tomo encontrar la palabra. La condicion para que la bomba no explote en cuenta es que la cantidad de
+    iteraciones sea menor o igual a 11y esto se ve en "401fd8: cmp    eax,0xb" y "401fdb: jg     402005 <cuenta+0x62>" donde se compara la cant de iteaciones 
+    con 0xb = 11, y se salta a <explode_bomb> en el 'jg'. Luego de salir de cuenta,  se compara que la cant de iteraciones calculadas por <cuenta> sea igual 
+    a las ingresadas en la segunda palabra del input. De aqui ya se deduce que el input tiene que ser una palabra y un numero. Y depues ocurre otra 'cmp' donde 
+    se asegura que el numero ingresado tambien sea mayor a 6. Con esto en cuenta se satisfacen todas las condiciones para desactivar la phase_3, se requiere
+    una palabra que este en palabras.txt, a la cual le tome a <cuenta> entre 7 y 11 iteraciones encontrarla y el numero ingresado en el input tiene que ser esa
+    cantidad exacta de iteraciones.
+
+phase_4:
+    Del <__isoc99_sscanf> deducimos que que necestiamos mas de una palabra en el input, debido al 'cmp  eax, 0x1' y el 'jle'. Luego con   '402172:cmp    eax,0xf'
+    y '402175:	je     4021a9 <phase_4+0x71>' obtenemos que la primera palabra tiene que ser un numero que sea distinto de 15. Ademas en 'mov ecx,0x0' y 'mov edx,0x0'
+    inicia una sumatoria y un contador respectivamente, para iniciar un loop. Despues en 'lea    rsi,[rip+0xcbcb8]' se guarda en 'rsi' un array de 16 elementos que nos
+    importara mas adelante. A partir de '402188' arrnca el loop y lo que ocurre es que el contador (edx) aumenta en 1, eax = array[eax] y el valor obtenido del array se
+    suma a 'ecx', esto sigue asi hasta que eax == 15 y el loop termina. Al salir del loop, es necesario que la cant de iteraciones (edx) sea igual a 13 y que la sumatoria
+    (ecx) sea igual al segundo input ingresado. Por lo tanto la segunda palabra tambien es un numero. Entonce para desactivar la phase_4, el input tiene que ser dos numeros,
+    el primero siendo el indice, distinto de 15, en donde el loop va a arrancar, para acceder al primer valor del array, de forma tal que el loop itere exactamente 13 veces.
+     Y el segundo numero del input tiene que ser la suma de todos los valores obtenidos del array durante las iteraciones del loop.
