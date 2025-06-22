@@ -1,17 +1,37 @@
-# Compiler settings - Can change to clang++ if preferred
+# --- Configuración ---
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -pthread -g
+CXXFLAGS = -std=c++17 -Wall -Werror -g -pthread
 
-# Build targets
-TARGET = threadpool
-SRC = thread-pool.cc Semaphore.cc main.cc
+# --- Archivos del Proyecto ---
+# Fuentes comunes a todos los tests
+COMMON_SRCS = thread-pool.cc Semaphore.cc
+# Convertimos los .cc a .o (archivos objeto)
+COMMON_OBJS = $(COMMON_SRCS:.cc=.o)
 
-# Link the target with object files
-$(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+# --- Reglas de Compilación ---
 
-# Clean up build artifacts
+# Por defecto, compila ambos tests
+all: tptest tpcustomtest main
+
+# Regla para compilar el ejecutable 'tptest'
+tptest: tptest.o $(COMMON_OBJS)
+	$(CXX) $(CXXFLAGS) -o tptest $^
+
+# Regla para compilar el ejecutable 'tpcustomtest'
+tpcustomtest: tpcustomtest.o $(COMMON_OBJS)
+	$(CXX) $(CXXFLAGS) -o tpcustomtest $^
+
+# Regla para compilar el ejecutable 'main'
+main: main.o $(COMMON_OBJS)
+	$(CXX) $(CXXFLAGS) -o main $^
+
+# Regla genérica para compilar cualquier .cc a .o
+%.o: %.cc
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+# Regla para limpiar los archivos compilados
 clean:
-	rm -f $(TARGET) $(OBJ)
+	rm -f tptest tpcustomtest *.o
 
+# Evita que make se confunda si existen archivos llamados 'all' o 'clean'
 .PHONY: all clean

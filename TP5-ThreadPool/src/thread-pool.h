@@ -10,14 +10,16 @@
 #ifndef _thread_pool_
 #define _thread_pool_
 
-#include <cstddef>     // for size_t
-#include <functional>  // for the function template used in the schedule signature
-#include <thread>      // for thread
-#include <vector>      // for vector
-#include "Semaphore.h" // for Semaphore
+#include <cstddef>
+#include <functional>
+#include <thread>
+#include <vector>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include "Semaphore.h"
 
 using namespace std;
-
 
 /**
  * @brief Represents a worker in the thread pool.
@@ -31,14 +33,11 @@ using namespace std;
 typedef struct worker {
     thread ts;
     function<void(void)> thunk;
-    /**
-     * Complete the definition of the worker_t struct here...
-     **/
+    Semaphore work_ready_semaphore;
 } worker_t;
 
 class ThreadPool {
-  public:
-
+public:
   /**
   * Constructs a ThreadPool configured to spawn up to the specified
   * number of threads.
@@ -65,28 +64,35 @@ class ThreadPool {
   * over the course of its lifetime.
   */
     ~ThreadPool();
-    
-  private:
 
-    void worker(int id);
+private:
+    void worker(size_t id);
     void dispatcher();
-    thread dt;                              // dispatcher thread handle
-    vector<worker_t> wts;                   // worker thread handles. you may want to change/remove this
-    bool done;                              // flag to indicate the pool is being destroyed
-    mutex queueLock;                        // mutex to protect the queue of tasks
 
-    /* It is incomplete, there should be more private variables to manage the structures... 
-    * *
-    */
-  
-    /* ThreadPools are the type of thing that shouldn't be cloneable, since it's
-    * not clear what it means to clone a ThreadPool (should copies of all outstanding
-    * functions to be executed be copied?).
-    *
-    * In order to prevent cloning, we remove the copy constructor and the
-    * assignment operator.  By doing so, the compiler will ensure we never clone
-    * a ThreadPool. */
+    vector<worker_t> wts; // Contenedor de los workers
+    bool shutting_down; // Flag para la secuencia de apagado
+
+    Semaphore tasks_to_dispatch_semaphore; // El dispatcher espera en este si no hay tareas
+    Semaphore available_workers_semaphore; // El dispatcher espera en este si no hay workers libres
+
+    size_t total_tasks_scheduled;
+    size_t tasks_completed;
+
+
+    thread dt;
+
+    queue<function<void(void)>> tasks_queue; // Cola de thunks
+    mutex tasks_queue_lock; // Mutex para proteger la cola de tareas
+
+    queue<size_t> available_workers_queue; // Cola de IDs de workers disponibles
+    mutex available_workers_lock; // Mutex para proteger la cola de workers
+
+    mutex completion_lock;
+    condition_variable all_tasks_done_cv;
+
+    // Evitar que el pool se pueda clonar
     ThreadPool(const ThreadPool& original) = delete;
     ThreadPool& operator=(const ThreadPool& rhs) = delete;
 };
+
 #endif
